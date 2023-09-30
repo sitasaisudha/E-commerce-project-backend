@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 exports.register = async (req, res) => {
   try {
     const { name, email, mobile, password } = req.body;
-
+    // res.send(req.body);
     // Check if the required fields are added or not
     if (!name || !email || !mobile || !password) {
       return res

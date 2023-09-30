@@ -31,10 +31,10 @@ exports.getProductsById = async(req,res)=>{
 }
 
 exports.getCartProducts = async(req,res) => {
-  console.log(req.body)
+  // console.log(req.body)
   try{
     const filter = {};
-    console.log(req.params.user)
+    console.log(req.params)
     const products = await MusicProducts.find({ cart: { $elemMatch: { $eq: req.params.user } } })
     res.json(products);
   }catch(err){
@@ -64,11 +64,47 @@ exports.setCart = async(req,res) => {
   }
 } 
 
+exports.clearCart = async (req,res)=>{
+  try{
+    const username = req.params.user;
+    console.log(username);
+    await MusicProducts.updateMany(
+      { 'cart': username },
+      { $pull: { 'cart': username } }
+    );
+
+    res.json({ message: 'Order placed successfully' });
+  }
+  catch (error) {
+    console.error('Error placing order:', error);
+    res.status(500).json({ error: 'An error occurred while placing the order' });
+  }
+}
+
+exports.placeOrder = async (req,res)=>{
+  try{
+   
+    const { itemId, username } = req.params;
+    console.log(itemId,username);
+    await MusicProducts.updateOne(
+      { _id: itemId },
+      { $pull: { cart: username } }
+    );
+
+
+   res.json({ message: 'Order placed successfully' });
+  }
+  catch (error) {
+    console.error('Error placing order:', error);
+    res.status(500).json({ error: 'An error occurred while placing the order' });
+  }
+}
+
 
 
 exports.getAllMusicProducts = async (req, res)=>{
     const { type = 'all', color = 'all', brand = 'all',minPrice = 0,
-    maxPrice = Infinity, sortBy = '', sortOrder = '' } = req.query;
+    maxPrice = Infinity, sortBy = '', sortOrder = '', search ='' } = req.query;
     try {
       let filter = {};
   
@@ -84,8 +120,14 @@ exports.getAllMusicProducts = async (req, res)=>{
         filter.brand = brand;
       }
       filter.price = { $gte: Number(minPrice), $lte: Number(maxPrice) };
+      if (search) {
+        const searchRegex = new RegExp(search, 'i'); // 'i' for case-insensitive search
+        filter.$or = [
+          { name: { $regex: searchRegex ,$options: 'i'} },
+          { company: { $regex: searchRegex, $options: 'i' } },
+        ];
+      }
       
-
       let result;
   
       if (!sortBy || !sortOrder) {
@@ -95,11 +137,18 @@ exports.getAllMusicProducts = async (req, res)=>{
   
         if (sortBy === 'price') {
           sortCriteria = { price: sortOrder === 'asc' ? 1 : -1 };
-        } else if (sortBy === 'alphabetical') {
-          sortCriteria = { name: sortOrder === 'asc' ? 1 : -1 };
+          result = await MusicProducts.find(filter).sort(sortCriteria);
         }
+        else if (sortBy === 'alphabetical') {
+
+          result = await MusicProducts.find(filter)
+          .sort({ name: sortOrder === 'asc' ? 1 : -1 })
+          .collation({ locale: 'en', strength: 2 });
+
+        }
+
   
-        result = await MusicProducts.find(filter).sort(sortCriteria);
+        
       }
   
       res.json(result);

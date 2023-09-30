@@ -7,6 +7,8 @@ const {
     getProductsById,
     setCart,
     getCartProducts,
+    clearCart,
+    placeOrder,
 } = require("../controllers/Product");
 
 const productRouter = express.Router();
@@ -19,5 +21,9 @@ productRouter.route("/getAllMusicProducts").get(getAllMusicProducts);
 productRouter.route("/").get(getProductsById);
 productRouter.route("/:id/cart/:user").put(setCart);
 productRouter.route("/getCart/:user").get(getCartProducts);
+productRouter.route("/clearCart/:user").put(clearCart);
+productRouter.route("/placeOrder/:itemId/:username").put(placeOrder);
+
+
 
 module.exports = productRouter;
