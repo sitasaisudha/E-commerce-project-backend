@@ -100,61 +100,85 @@ exports.placeOrder = async (req,res)=>{
   }
 }
 
+//to send thefilterd music products 
+exports.getAllMusicProducts = async (req, res) => {
+  const {
+    type = 'all',
+    color = 'all',
+    brand = 'all',
+    minPrice = 0,
+    maxPrice = Infinity,
+    sortBy = '',
+    sortOrder = '',
+    search = ''
+  } = req.query;
 
+  
+  const isFeaturedFilter =
+    type === 'featured' ||
+    color === 'featured' ||
+    brand === 'featured' ||
+    minPrice === 'featured' ||
+    maxPrice === 'featured' ||
+    sortBy === 'featured' ||
+    sortOrder === 'featured' ||
+    search === 'featured';
 
-exports.getAllMusicProducts = async (req, res)=>{
-    const { type = 'all', color = 'all', brand = 'all',minPrice = 0,
-    maxPrice = Infinity, sortBy = '', sortOrder = '', search ='' } = req.query;
-    try {
-      let filter = {};
-  
-      if (type !== 'all') {
-        filter.type = type;
-      }
-  
-      if (color !== 'all') {
-        filter.color = color;
-      }
-  
-      if (brand !== 'all') {
-        filter.brand = brand;
-      }
+  try {
+    let filter = {};
+
+    if (type !== 'all' && !isFeaturedFilter) {
+      filter.type = type;
+    }
+
+    if (color !== 'all' && !isFeaturedFilter) {
+      filter.color = color;
+    }
+
+    if (brand !== 'all' && !isFeaturedFilter) {
+      filter.brand = brand;
+    }
+
+    if (!isFeaturedFilter) {
       filter.price = { $gte: Number(minPrice), $lte: Number(maxPrice) };
-      if (search) {
-        const searchRegex = new RegExp(search, 'i'); // 'i' for case-insensitive search
-        filter.$or = [
-          { name: { $regex: searchRegex ,$options: 'i'} },
-          { company: { $regex: searchRegex, $options: 'i' } },
-        ];
-      }
-      
-      let result;
-  
-      if (!sortBy || !sortOrder) {
-        result = await MusicProducts.find(filter);
-      } else {
-        let sortCriteria = {};
-  
-        if (sortBy === 'price') {
-          sortCriteria = { price: sortOrder === 'asc' ? 1 : -1 };
-          result = await MusicProducts.find(filter).sort(sortCriteria);
-        }
-        else if (sortBy === 'alphabetical') {
+    }
 
-          result = await MusicProducts.find(filter)
+    if (search && !isFeaturedFilter) {
+      const searchRegex = new RegExp(search, 'i'); // 'i' for case-insensitive search
+      filter.$or = [
+        { name: { $regex: searchRegex, $options: 'i' } },
+        { company: { $regex: searchRegex, $options: 'i' } },
+      ];
+    }
+
+    if (isFeaturedFilter) {
+      // If any filter parameter is specified as "featured", return products with featured: true
+      filter.featured = true;
+    }
+
+    let result;
+
+    if (!sortBy || !sortOrder) {
+      result = await MusicProducts.find(filter);
+    } else {
+      let sortCriteria = {};
+
+      if (sortBy === 'price') {
+        sortCriteria = { price: sortOrder === 'asc' ? 1 : -1 }; 
+        result = await MusicProducts.find(filter)
+          .sort(sortCriteria)
+          .collation({ locale: 'en', numericOrdering: true });
+      }
+       else if (sortBy === 'alphabetical') {
+        result = await MusicProducts.find(filter)
           .sort({ name: sortOrder === 'asc' ? 1 : -1 })
           .collation({ locale: 'en', strength: 2 });
-
-        }
-
-  
-        
       }
-  
-      res.json(result);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'An error occurred while fetching products.' });
     }
-    // MusicProducts.find().then((products)=> res.json({musicProducts:products}) ).catch((error)=> res.json(error))
-}
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'An error occurred while fetching products.' });
+  }
+};
